@@ -80,11 +80,6 @@ export default function MomentDetail() {
                   : 'bg-red-100 text-red-700'
               }`}
             >
-              {moment.isPositive ? (
-                <Plus className="w-5 h-5" />
-              ) : (
-                <Minus className="w-5 h-5" />
-              )}
               <span className="text-lg">{displayImpact}</span>
             </div>
 

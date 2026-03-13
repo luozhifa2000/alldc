@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  nickname     String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  moments      Moment[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model EmailVerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+  @@index([expiresAt])
+  @@map("email_verification_codes")
+}
+
+model Moment {
+  id               String        @id @default(uuid())
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  shortDescription String?
+  richContent      String        @db.Text
+  textPreview      String?
+  impactPercent    Float
+  impactType       ImpactType
+  images           MomentImage[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId])
+  @@map("moments")
+}
+
+model MomentImage {
+  id        String   @id @default(uuid())
+  moment    Moment   @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  momentId  String
+  imageUrl  String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([momentId])
+  @@map("moment_images")
+}
+
+enum ImpactType {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+

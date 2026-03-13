@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../context/AppContext';
+import { authAPI } from '../../lib/api';
 
 export default function Registration() {
   const navigate = useNavigate();
@@ -12,8 +13,9 @@ export default function Registration() {
     confirmPassword: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -27,8 +29,28 @@ export default function Registration() {
       return;
     }
 
-    register(formData.email, formData.nickname);
-    navigate('/dashboard');
+    setLoading(true);
+
+    try {
+      const response = await authAPI.register(
+        formData.email,
+        formData.nickname,
+        formData.password
+      );
+
+      // Save token to localStorage
+      localStorage.setItem('auth_token', response.token);
+
+      // Update app context
+      register(formData.email, formData.nickname);
+
+      // Navigate to dashboard
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,14 +126,17 @@ export default function Registration() {
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 text-center">{error}</p>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {error}
+              </div>
             )}
 
             <button
               type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors"
+              disabled={loading}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
 

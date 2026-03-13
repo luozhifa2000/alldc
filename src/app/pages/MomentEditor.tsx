@@ -14,11 +14,12 @@ export default function MomentEditor() {
   const navigate = useNavigate();
   const { addMoment, user } = useApp();
   const [shortDescription, setShortDescription] = useState('');
-  const [impact, setImpact] = useState('0.1');
+  const [impact, setImpact] = useState('0.01');
   const [isPositive, setIsPositive] = useState(true);
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
     { id: '1', type: 'text', content: '' },
   ]);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -27,12 +28,18 @@ export default function MomentEditor() {
   }, [user, navigate]);
 
   const addContentBlock = (type: 'text' | 'image') => {
-    const newBlock: ContentBlock = {
-      id: Date.now().toString(),
-      type,
-      content: '',
-    };
-    setContentBlocks([...contentBlocks, newBlock]);
+    if (type === 'image') {
+      // For image, trigger file picker directly
+      imageInputRef.current?.click();
+    } else {
+      // For text, create block immediately
+      const newBlock: ContentBlock = {
+        id: Date.now().toString(),
+        type,
+        content: '',
+      };
+      setContentBlocks([...contentBlocks, newBlock]);
+    }
   };
 
   const updateContentBlock = (id: string, content: string) => {
@@ -44,9 +51,8 @@ export default function MomentEditor() {
   };
 
   const removeContentBlock = (id: string) => {
-    if (contentBlocks.length > 1) {
-      setContentBlocks(contentBlocks.filter((block) => block.id !== id));
-    }
+    // Allow removing any block, user can always add more
+    setContentBlocks(contentBlocks.filter((block) => block.id !== id));
   };
 
   const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +66,26 @@ export default function MomentEditor() {
     }
   };
 
+  // Handle direct image upload from "Add Image" button
+  const handleDirectImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Create new image block with content
+        const newBlock: ContentBlock = {
+          id: Date.now().toString(),
+          type: 'image',
+          content: reader.result as string,
+        };
+        setContentBlocks([...contentBlocks, newBlock]);
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
   const handleSave = () => {
     if (!shortDescription.trim()) {
       alert('Please enter a short description');
@@ -68,24 +94,29 @@ export default function MomentEditor() {
 
     const impactDecimal = parseFloat(impact) / 100;
 
+    // Filter and collect all valid content blocks
+    const validContents = contentBlocks.filter((block) => {
+      if (block.type === 'text') {
+        return block.content.trim() !== '';
+      } else {
+        return block.content !== '';
+      }
+    }).map((block) => ({
+      type: block.type,
+      content: block.content,
+    }));
+
+    // Extract all images for thumbnails (not just first 3)
     const images = contentBlocks
       .filter((block) => block.type === 'image' && block.content)
-      .map((block) => block.content)
-      .slice(0, 3);
-
-    const contents = contentBlocks
-      .filter((block) => block.content.trim())
-      .map((block) => ({
-        type: block.type,
-        content: block.content,
-      }));
+      .map((block) => block.content);
 
     addMoment({
       date: new Date().toISOString(),
       shortDescription,
       impact: impactDecimal,
       isPositive,
-      contents,
+      contents: validContents,
       images,
     });
 
@@ -205,14 +236,13 @@ export default function MomentEditor() {
                     )}
                   </div>
                 )}
-                {contentBlocks.length > 1 && (
-                  <button
-                    onClick={() => removeContentBlock(block.id)}
-                    className="absolute top-2 right-2 p-1.5 bg-white hover:bg-red-50 text-red-500 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                {/* Always show delete button, allow removing all blocks */}
+                <button
+                  onClick={() => removeContentBlock(block.id)}
+                  className="absolute top-2 right-2 p-1.5 bg-white hover:bg-red-50 text-red-500 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             ))}
           </div>
@@ -234,6 +264,14 @@ export default function MomentEditor() {
             <ImageIcon className="w-4 h-4" />
             Add Image
           </button>
+          {/* Hidden file input for direct image upload */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDirectImageUpload}
+            className="hidden"
+          />
         </div>
 
         {/* Save Button */}

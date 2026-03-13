@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../context/AppContext';
+import { authAPI } from '../../lib/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,23 +13,66 @@ export default function Login() {
     verificationCode: '',
   });
   const [codeSent, setCodeSent] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handlePasswordLogin = (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(formData.email);
-    navigate('/dashboard');
-  };
+    setError('');
+    setLoading(true);
 
-  const handleSendCode = () => {
-    // Mock sending verification code
-    setCodeSent(true);
-  };
+    try {
+      const response = await authAPI.login(formData.email, formData.password);
 
-  const handleEmailLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (codeSent && formData.verificationCode) {
+      // Save token to localStorage
+      localStorage.setItem('auth_token', response.token);
+
+      // Update app context
       login(formData.email);
+
+      // Navigate to dashboard
       navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    setError('');
+    setLoading(true);
+
+    try {
+      await authAPI.sendVerificationCode(formData.email);
+      setCodeSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await authAPI.verifyCode(formData.email, formData.verificationCode);
+
+      // Save token to localStorage
+      localStorage.setItem('auth_token', response.token);
+
+      // Update app context
+      login(formData.email);
+
+      // Navigate to dashboard
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Verification failed. Please check your code.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,6 +109,13 @@ export default function Login() {
             </button>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Password Login */}
           {loginMethod === 'password' && (
             <form onSubmit={handlePasswordLogin} className="space-y-5">
@@ -81,6 +132,7 @@ export default function Login() {
                   }
                   className="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="you@example.com"
+                  disabled={loading}
                 />
               </div>
 
@@ -97,14 +149,16 @@ export default function Login() {
                   }
                   className="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="••••••••"
+                  disabled={loading}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors"
+                disabled={loading}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Login
+                {loading ? 'Logging in...' : 'Login'}
               </button>
             </form>
           )}
@@ -125,6 +179,7 @@ export default function Login() {
                   }
                   className="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   placeholder="you@example.com"
+                  disabled={loading || codeSent}
                 />
               </div>
 
@@ -132,9 +187,10 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={handleSendCode}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors"
+                  disabled={loading || !formData.email}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Verification Code
+                  {loading ? 'Sending...' : 'Send Verification Code'}
                 </button>
               ) : (
                 <>
@@ -154,13 +210,15 @@ export default function Login() {
                       }
                       className="w-full px-4 py-3 rounded-lg bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
                       placeholder="Enter code"
+                      disabled={loading}
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors"
+                    disabled={loading}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Verify & Login
+                    {loading ? 'Verifying...' : 'Verify & Login'}
                   </button>
                 </>
               )}

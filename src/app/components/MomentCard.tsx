@@ -23,6 +23,13 @@ export default function MomentCard({ moment }: MomentCardProps) {
     .join(' ')
     .slice(0, 150);
 
+  // Use images field first (thumbnails), fallback to contents
+  const displayImages = moment.images && moment.images.length > 0
+    ? moment.images
+    : moment.contents
+        .filter((c) => c.type === 'image' && c.content)
+        .map((c) => c.content);
+
   return (
     <div
       onClick={() => navigate(`/moment/${moment.id}`)}
@@ -40,11 +47,6 @@ export default function MomentCard({ moment }: MomentCardProps) {
               : 'bg-red-100 text-red-700'
           }`}
         >
-          {moment.isPositive ? (
-            <Plus className="w-4 h-4" />
-          ) : (
-            <Minus className="w-4 h-4" />
-          )}
           <span className="text-sm">{displayImpact}</span>
         </div>
       </div>
@@ -52,13 +54,13 @@ export default function MomentCard({ moment }: MomentCardProps) {
       {/* Short Description */}
       <h3 className="text-lg mb-4">{moment.shortDescription}</h3>
 
-      {/* Images */}
-      {moment.images.length > 0 && (
-        <div className="flex gap-2 mb-4">
-          {moment.images.slice(0, 3).map((img, idx) => (
+      {/* Images - single row, overflow hidden */}
+      {displayImages.length > 0 && (
+        <div className="flex gap-2 mb-4 overflow-x-auto overflow-y-hidden">
+          {displayImages.map((img, idx) => (
             <div
               key={idx}
-              className="w-20 h-20 bg-gray-200 rounded-lg overflow-hidden"
+              className="flex-shrink-0 h-16 aspect-square bg-gray-200 rounded-lg overflow-hidden"
             >
               <img
                 src={img}
